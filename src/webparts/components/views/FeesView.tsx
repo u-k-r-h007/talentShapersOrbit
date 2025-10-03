@@ -1,0 +1,238 @@
+import * as React from 'react';
+import { useState } from 'react';
+import Table from '../common/Table';
+import Modal from '../common/Modal';
+import ConfirmationModal from '../common/ConfirmationModal';
+import { useMockData } from '../../hooks/useMockData';
+import type { FeePayment } from '../../types';
+
+// Icons for actions
+const EditIcon: React.FC<{className?: string}> = (props) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" /></svg>
+);
+const DeleteIcon: React.FC<{className?: string}> = (props) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+);
+const ReceiptIcon: React.FC<{ className?: string }> = (props) => (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" width="16" height="16"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+);
+
+
+// Reusable Form Components
+const FormInput: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label: string }> = ({ label, ...props }) => (
+    <div className="mb-3">
+        <label className="form-label">{label}</label>
+        <input {...props} className="form-control" />
+    </div>
+);
+const FormSelect: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { label: string }> = ({ label, children, ...props }) => (
+    <div className="mb-3">
+        <label className="form-label">{label}</label>
+        <select {...props} className="form-select">
+            {children}
+        </select>
+    </div>
+);
+
+
+const FeesView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) => {
+    const { feePayments, students, addFeePayment, updateFeePayment, deleteFeePayment } = data;
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingPayment, setEditingPayment] = useState<FeePayment | null>(null);
+    const [paymentToDelete, setPaymentToDelete] = useState<FeePayment | null>(null);
+
+    const initialFormState: Omit<FeePayment, 'id'> = { studentId: '', amount: 0, date: new Date().toISOString().split('T')[0], status: 'Paid', paymentMethod: 'Cash' };
+    const [formState, setFormState] = useState(initialFormState);
+
+    const getStudentName = (studentId: string) => {
+        return students.find(s => s.id === studentId)?.name || 'Unknown Student';
+    };
+
+    const handleOpenModal = (payment: FeePayment | null = null) => {
+        if (payment) {
+            setEditingPayment(payment);
+            setFormState(payment);
+        } else {
+            setEditingPayment(null);
+            setFormState(initialFormState);
+        }
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingPayment(null);
+        setFormState(initialFormState);
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+        setFormState(prev => ({
+            ...prev,
+            [name]: type === 'number' ? parseFloat(value) || 0 : value,
+        }));
+    };
+
+    const handleSubmit = () => {
+        if (formState.studentId && formState.amount > 0) {
+            if (editingPayment) {
+                updateFeePayment(formState as FeePayment);
+            } else {
+                addFeePayment(formState);
+            }
+            handleCloseModal();
+        } else {
+            alert('Please select a student and enter a valid amount.');
+        }
+    };
+
+    const handleDelete = () => {
+        if (paymentToDelete) {
+            deleteFeePayment(paymentToDelete.id);
+            setPaymentToDelete(null);
+        }
+    };
+
+    const generateBillPdf = (payment: FeePayment) => {
+        const student = students.find(s => s.id === payment.studentId);
+        if (!student) return;
+
+        // @ts-ignore
+        const doc = new window.jspdf.jsPDF();
+
+        // Header
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Talent Shapers Orbit', 105, 20, { align: 'center' });
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text('Kirti Tower, Techzone-4 Greater Noida west', 105, 27, { align: 'center' });
+        doc.setFontSize(14);
+        doc.text('Payment Receipt', 105, 38, { align: 'center' });
+    
+        // Student & Payment Info
+        doc.setFontSize(10);
+        doc.text(`Bill To: ${student.name}`, 20, 55);
+        doc.text(`Email: ${student.email}`, 20, 60);
+        
+        doc.text(`Transaction ID: ${payment.id}`, 190, 55, { align: 'right' });
+        doc.text(`Date: ${payment.date}`, 190, 60, { align: 'right' });
+        doc.text(`Payment Method: ${payment.paymentMethod}`, 190, 65, { align: 'right' });
+    
+        // Table using autoTable plugin
+        doc.autoTable({
+            startY: 75,
+            head: [['Description', 'Amount']],
+            body: [
+                ['Course Fee Payment', `₹${payment.amount.toLocaleString()}`]
+            ],
+            foot: [
+                [{ content: 'Total Paid', colSpan: 1, styles: { halign: 'right', fontStyle: 'bold' } }, { content: `₹${payment.amount.toLocaleString()}`, styles: { fontStyle: 'bold' } }]
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [78, 89, 104] }
+        });
+    
+        // Footer
+        const finalY = (doc as any).lastAutoTable.finalY;
+        doc.setFontSize(10);
+        doc.text('Thank you for your payment!', 105, finalY + 20, { align: 'center' });
+    
+        // Save PDF
+        doc.save(`Receipt-${student.name.replace(' ', '_')}-${payment.date}.pdf`);
+    };
+
+    return (
+        <div>
+            <div className="d-flex justify-content-between align-items-center mb-4">
+                <h1 className="h2">Fee Collection</h1>
+                <button 
+                    onClick={() => handleOpenModal()}
+                    className="btn btn-primary">
+                    Add Payment
+                </button>
+            </div>
+            <Table headers={['Student', 'Amount', 'Date', 'Payment Method', 'Status', 'Actions']}>
+                {feePayments.map(payment => (
+                    <tr key={payment.id} className="align-middle">
+                        <td className="p-3 fw-semibold">{getStudentName(payment.studentId)}</td>
+                        <td className="p-3">₹{payment.amount.toLocaleString()}</td>
+                        <td className="p-3">{payment.date}</td>
+                        <td className="p-3">{payment.paymentMethod}</td>
+                        <td className="p-3">
+                            <span className={`badge rounded-pill ${
+                                payment.status === 'Paid' 
+                                ? 'text-bg-success' 
+                                : 'text-bg-warning'
+                            }`}>
+                                {payment.status}
+                            </span>
+                        </td>
+                        <td className="p-3">
+                            <div className="d-flex gap-2">
+                                {payment.status === 'Paid' && (
+                                    <button 
+                                        onClick={() => generateBillPdf(payment)} 
+                                        className="btn btn-sm btn-outline-success"
+                                        title="Download Bill"
+                                    >
+                                        <ReceiptIcon />
+                                    </button>
+                                )}
+                                <button onClick={() => handleOpenModal(payment)} className="btn btn-sm btn-outline-secondary" title="Edit Payment">
+                                    <EditIcon />
+                                </button>
+                                <button onClick={() => setPaymentToDelete(payment)} className="btn btn-sm btn-outline-danger" title="Delete Payment">
+                                    <DeleteIcon />
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                ))}
+            </Table>
+
+            {paymentToDelete && (
+                <ConfirmationModal
+                    title="Delete Payment"
+                    message={`Are you sure you want to delete this payment record?`}
+                    onConfirm={handleDelete}
+                    onCancel={() => setPaymentToDelete(null)}
+                />
+            )}
+
+            <Modal show={isModalOpen} title={editingPayment ? "Edit Payment" : "Add New Payment"} onClose={handleCloseModal}>
+                <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}>
+                    <FormSelect label="Student" name="studentId" value={formState.studentId} onChange={handleInputChange} required>
+                        <option value="">Select a student</option>
+                        {students.map(student => <option key={student.id} value={student.id}>{student.name}</option>)}
+                    </FormSelect>
+                    <FormInput label="Amount (₹)" name="amount" type="number" value={formState.amount > 0 ? formState.amount : ''} onChange={handleInputChange} required />
+                    <FormInput label="Date" name="date" type="date" value={formState.date} onChange={handleInputChange} required />
+                    <div className="row">
+                        <div className="col-md-6">
+                            <FormSelect label="Payment Method" name="paymentMethod" value={formState.paymentMethod} onChange={handleInputChange} required>
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                                <option value="Online">Online</option>
+                                <option value="Other">Other</option>
+                            </FormSelect>
+                        </div>
+                        <div className="col-md-6">
+                            <FormSelect label="Status" name="status" value={formState.status} onChange={handleInputChange} required>
+                                <option value="Paid">Paid</option>
+                                <option value="Pending">Pending</option>
+                            </FormSelect>
+                        </div>
+                    </div>
+
+                    <div className="d-flex justify-content-end pt-3 mt-3 border-top">
+                        <button type="button" onClick={handleCloseModal} className="btn btn-secondary me-2">Cancel</button>
+                        <button type="submit" className="btn btn-primary">{editingPayment ? "Save Changes" : "Add Payment"}</button>
+                    </div>
+                </form>
+            </Modal>
+        </div>
+    );
+};
+
+export default FeesView;
