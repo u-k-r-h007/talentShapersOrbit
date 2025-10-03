@@ -5,6 +5,9 @@ import Modal from '../common/Modal';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { useMockData } from '../../hooks/useMockData';
 import type { FeePayment } from '../../types';
+import { FeePaymentMethods } from '../services/FeePaymentMethods';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Icons for actions
 const EditIcon: React.FC<{className?: string}> = (props) => (
@@ -36,7 +39,7 @@ const FormSelect: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { lab
 
 
 const FeesView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) => {
-    const { feePayments, students, addFeePayment, updateFeePayment, deleteFeePayment } = data;
+    const { feePayments, students , addFeePayment, updateFeePayment, deleteFeePayment} = FeePaymentMethods();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPayment, setEditingPayment] = useState<FeePayment | null>(null);
     const [paymentToDelete, setPaymentToDelete] = useState<FeePayment | null>(null);
@@ -97,9 +100,7 @@ const FeesView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) 
         const student = students.find(s => s.id === payment.studentId);
         if (!student) return;
 
-        // @ts-ignore
-        const doc = new window.jspdf.jsPDF();
-
+        const doc = new jsPDF();
         // Header
         doc.setFontSize(20);
         doc.setFont('helvetica', 'bold');
@@ -113,21 +114,20 @@ const FeesView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) 
         // Student & Payment Info
         doc.setFontSize(10);
         doc.text(`Bill To: ${student.name}`, 20, 55);
-        doc.text(`Email: ${student.email}`, 20, 60);
-        
+        doc.text(`Email: ${student.email || ''}`, 20, 60);
         doc.text(`Transaction ID: ${payment.id}`, 190, 55, { align: 'right' });
         doc.text(`Date: ${payment.date}`, 190, 60, { align: 'right' });
         doc.text(`Payment Method: ${payment.paymentMethod}`, 190, 65, { align: 'right' });
     
         // Table using autoTable plugin
-        doc.autoTable({
+        autoTable(doc, {
             startY: 75,
             head: [['Description', 'Amount']],
             body: [
-                ['Course Fee Payment', `₹${payment.amount.toLocaleString()}`]
+                ['Course Fee Payment', `Rs. ${payment.amount.toLocaleString()}`]
             ],
             foot: [
-                [{ content: 'Total Paid', colSpan: 1, styles: { halign: 'right', fontStyle: 'bold' } }, { content: `₹${payment.amount.toLocaleString()}`, styles: { fontStyle: 'bold' } }]
+                [{ content: 'Total Paid', colSpan: 1, styles: { halign: 'right', fontStyle: 'bold' } }, { content: `Rs. ${payment.amount.toLocaleString()}`, styles: { fontStyle: 'bold' } }]
             ],
             theme: 'striped',
             headStyles: { fillColor: [78, 89, 104] }
