@@ -1,6 +1,8 @@
 import * as React from 'react';
 import Card from '../common/Card';
 import { useMockData } from '../../hooks/useMockData';
+import { ExpensesMethods } from '../services/ExpensesMethods';
+import { TrainerMethods } from '../services/TrainerMethods';
 // import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const cardColors = {
@@ -11,27 +13,38 @@ const cardColors = {
 }
 
 const DashboardView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) => {
-    const { students, trainers, courses, feePayments, expenses } = data;
+    const { students, courses, feePayments } = data;
+    const { trainers } = TrainerMethods();
+    const { expenseData } = ExpensesMethods();
 
     const totalRevenue = feePayments.filter(f => f.status === 'Paid').reduce((sum, f) => sum + f.amount, 0);
     const activeStudentsCount = students.filter(s => s.status === 'Active').length;
     
     const processMonthlyData = () => {
         const monthlyData: { [key: string]: { Revenue: number, Expenses: number } } = {};
-        const processItems = (items: (typeof feePayments | typeof expenses), type: 'Revenue' | 'Expenses') => {
+        const processItems = (items: any[], type: 'Revenue' | 'Expenses') => {
             items.forEach(item => {
-                if (type === 'Revenue' && (item as any).status !== 'Paid') return;
-    
-                const month = new Date(item.date).toLocaleString('default', { month: 'short', year: 'numeric' });
-                if (!monthlyData[month]) {
-                    monthlyData[month] = { Revenue: 0, Expenses: 0 };
-                }
-                monthlyData[month][type] += item.amount;
+              // Skip unpaid revenue
+              if (type === 'Revenue' && item.status !== 'Paid') return;
+          
+              // Pick correct fields based on type
+              const dateStr = type === 'Revenue' ? item.date : item.Date;
+              const amount = type === 'Revenue' ? item.amount : item.Amount;
+          
+              const dateObj = new Date(dateStr);
+              if (isNaN(dateObj.getTime())) return; // skip invalid dates
+          
+              const month = dateObj.toLocaleString('default', { month: 'short', year: 'numeric' });
+          
+              if (!monthlyData[month]) monthlyData[month] = { Revenue: 0, Expenses: 0 };
+          
+              monthlyData[month][type] += Number(amount) || 0;
             });
-        };
+          };
+          
     
         processItems(feePayments, 'Revenue');
-        processItems(expenses, 'Expenses');
+        processItems(expenseData, 'Expenses');
         
         const chartData = Object.keys(monthlyData).map(month => ({
             name: month,
@@ -112,10 +125,10 @@ const DashboardView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ dat
                                         </li>
                                     );
                                 })}
-                                {expenses.slice(-2).reverse().map(expense => (
+                                {expenseData.slice(-2).reverse().map(expense => (
                                     <li key={expense.id} className="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>Expense: <span className="text-danger fw-semibold">{expense.description}</span></span>
-                                        <span className="fw-bold text-danger">-₹{expense.amount}</span>
+                                        <span>Expense: <span className="text-danger fw-semibold">{expense.Description}</span></span>
+                                        <span className="fw-bold text-danger">-₹{expense.Amount}</span>
                                     </li>
                                 ))}
                             </ul>
