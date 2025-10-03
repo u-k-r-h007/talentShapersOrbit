@@ -9,6 +9,7 @@ import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 
 import * as strings from 'WebPartStrings';
 import App from './App';
+import pnp from 'sp-pnp-js';
 
 export interface IWebPartProps {
   description: string;
@@ -24,7 +25,13 @@ export default class WebPart extends BaseClientSideWebPart<IWebPartProps> {
     ReactDom.render(element, this.domElement);
   }
 
-
+  protected onInit(): Promise<void> {
+    return super.onInit().then(_ =>{
+     pnp.setup({
+      spfxContext: this.context
+    });
+    });
+  }
 
 
 

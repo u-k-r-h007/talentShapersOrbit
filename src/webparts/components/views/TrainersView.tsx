@@ -4,6 +4,7 @@ import Modal from '../common/Modal';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { useMockData } from '../../hooks/useMockData';
 import type { Trainer } from '../../types';
+import { TrainerMethods } from "../services/TrainerMethods";
 
 // Icons for actions
 const EditIcon: React.FC<{className?: string}> = (props: {className?: string}) => (
@@ -35,33 +36,39 @@ const FormTextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> &
     </div>
 );
 
-const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
-});
 
 const TrainersView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) => {
-    const { trainers, courses, addTrainer, updateTrainer, deleteTrainer } = data;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTrainer, setEditingTrainer] = useState<Trainer | null>(null);
     const [trainerToDelete, setTrainerToDelete] = useState<Trainer | null>(null);
 
-    const initialFormState: Omit<Trainer, 'id'> = { name: '', email: '', expertise: [], phone: '', address: '', imageUrl: '', gender: 'Male' };
+    const initialFormState: Omit<Trainer, "id"> & { imageFile?: File | null } = {
+        name: "",
+        email: "",
+        expertise: [],
+        phone: "",
+        address: "",
+        imageUrl: "",
+        gender: "Male",
+        imageFile: null, 
+      };
     const [formState, setFormState] = useState(initialFormState);
+    const { trainers,courses, addTrainer, updateTrainer, deleteTrainer } = TrainerMethods();
 
     const getExpertiseNames = (expertiseIds: string[]) => {
-        return expertiseIds.map((id: string) => courses.find((c: any) => c.id === id)?.name).filter(Boolean).join(', ');
+        return expertiseIds
+          .map((id) => courses.find((c) => c.id === id)?.name) 
+          .filter(Boolean) 
+          .join(", ");
     };
 
     const handleOpenModal = (trainer: Trainer | null = null) => {
         if (trainer) {
-            setEditingTrainer(trainer);
-            setFormState(trainer);
+          setEditingTrainer(trainer);
+          setFormState(trainer);
         } else {
-            setEditingTrainer(null);
-            setFormState(initialFormState);
+          setEditingTrainer(null);
+          setFormState(initialFormState);
         }
         setIsModalOpen(true);
     };
@@ -70,44 +77,67 @@ const TrainersView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data
         setIsModalOpen(false);
         setEditingTrainer(null);
         setFormState(initialFormState);
-    };
+    }
     
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-        setFormState({ ...formState, [e.target.name]: e.target.value });
-    };
+    const handleInputChange = (
+        e: React.ChangeEvent<
+        HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+        >
+        ) => setFormState({ ...formState, [e.target.name]: e.target.value });
 
     const handleExpertiseChange = (courseId: string) => {
         const newExpertise = formState.expertise.includes(courseId)
-            ? formState.expertise.filter(id => id !== courseId)
-            : [...formState.expertise, courseId];
+        ? formState.expertise.filter((id) => id !== courseId)
+        : [...formState.expertise, courseId];
         setFormState({ ...formState, expertise: newExpertise });
     };
     
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            const base64 = await toBase64(e.target.files[0]);
-            setFormState({ ...formState, imageUrl: base64 });
+          const file = e.target.files[0];
+          setFormState({
+            ...formState,
+            imageFile: file,                       
+            imageUrl: URL.createObjectURL(file),   
+          });
         }
-    };
+      };
 
     const handleSubmit = () => {
         if (formState.name && formState.email) {
-            if (editingTrainer) {
-                updateTrainer(formState as Trainer);
-            } else {
-                addTrainer(formState);
-            }
+          try {
+            editingTrainer
+              ? updateTrainer(formState as Trainer)
+              : addTrainer(formState);  // this calls uploadTrainerImage inside TrainerMethods
             handleCloseModal();
+          } catch (error) {
+            console.error("Error submitting trainer:", error);
+          }
         } else {
-            alert('Please fill Name and Email fields.');
+          alert("Please fill Name and Email fields.");
         }
     };
 
     const handleDelete = () => {
         if (trainerToDelete) {
-            deleteTrainer(trainerToDelete.id);
-            setTrainerToDelete(null);
+          deleteTrainer(trainerToDelete.id);
+          setTrainerToDelete(null);
         }
+    };
+
+    const getTrainerImage = (trainer: any) => {
+        if (trainer.imageFile) {
+          // Local preview for newly selected file
+          return URL.createObjectURL(trainer.imageFile);
+        }
+        if (trainer.imageUrl) {
+          // If it already has http(s), use as is, else prepend window.location.origin
+          return trainer.imageUrl.startsWith("http")
+            ? trainer.imageUrl
+            : `${window.location.origin}${trainer.imageUrl}`;
+        }
+        // fallback avatar
+        return `https://ui-avatars.com/api/?name=${trainer.name.replace(" ", "+")}&background=random`;
     };
 
     return (
@@ -125,7 +155,8 @@ const TrainersView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data
                     <tr key={trainer.id} className="align-middle">
                         <td className="p-3">
                             <div className="d-flex align-items-center">
-                                <img src={trainer.imageUrl || `https://ui-avatars.com/api/?name=${trainer.name.replace(' ', '+')}&background=random`} alt={trainer.name} className="rounded-circle me-3 object-fit-cover" width="40" height="40" />
+                                <img src={getTrainerImage(trainer)}
+                                    alt={trainer.name} className="rounded-circle me-3 object-fit-cover" width="40" height="40" />
                                 <span className="fw-semibold">{trainer.name}</span>
                             </div>
                         </td>
