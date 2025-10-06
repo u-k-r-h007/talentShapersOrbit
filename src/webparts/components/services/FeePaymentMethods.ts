@@ -9,11 +9,14 @@ export function FeePaymentMethods() {
   const fetchStudents = async () => {
     try {
       const items = await web.lists.getByTitle("TshapersStudent").items
-        .select("Id,Title")
+        .select("Id,Title,emailAddress,courses/Id")
+        .expand('courses')
         .get();
       const mapped = items.map((item: any) => ({
         id: item.Id.toString(),
         name: item.Title,
+        email: item.emailAddress,
+        courseIds: item.courses 
       }));
       setStudents(mapped);
     } catch (err) {
@@ -28,7 +31,6 @@ export function FeePaymentMethods() {
         .select("Id,Title,Student/ID,Student/Title,Amount,Date,Status,PaymentMethod")
         .expand("Student")
         .get();
-        console.log('actually data ', items)
 
       const mapped = items.map((item: any) => ({
         id: item.Id.toString(),

@@ -18,7 +18,6 @@ export const TrainerMethods = () => {
           const sanitizeUrl = (url: string) => {
             if (!url) return "";
             if (url.startsWith("http://") || url.startsWith("https://")) return url;
-            // Fix missing colon after https
             if (url.startsWith("https//")) return url.replace("https//", "https://");
             return `${window.location.origin}${url}`;
           };
@@ -60,7 +59,6 @@ export const TrainerMethods = () => {
     getTrainers();
   }, []);
 
-  // TrainerMethods.ts
 const uploadTrainerImage = async (file: File) => {
   const folder = web.getFolderByServerRelativeUrl("/sites/TSO/Pictures/TrainerImage");
   const uploadedFile = await folder.files.add(file.name, file, true);

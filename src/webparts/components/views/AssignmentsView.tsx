@@ -5,6 +5,9 @@ import Modal from '../common/Modal';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { useMockData } from '../../hooks/useMockData';
 import type { Assignment } from '../../types';
+import { AssigmentMethods } from '../services/AssigmentMethods';
+import { TrainerMethods } from '../services/TrainerMethods';
+import { FeePaymentMethods } from '../services/FeePaymentMethods';
 
 // Icons
 const EditIcon: React.FC<{className?: string}> = (props) => (
@@ -33,20 +36,31 @@ const FormSelect: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { lab
     </div>
 );
 
-const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = error => reject(error);
-});
+// const toBase64 = (file: File): Promise<string> => new Promise((resolve, reject) => {
+//     const reader = new FileReader();
+//     reader.readAsDataURL(file);
+//     reader.onload = () => resolve(reader.result as string);
+//     reader.onerror = error => reject(error);
+// });
 
 const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) => {
-    const { assignments, students, courses, trainers, addAssignment, updateAssignment, deleteAssignment } = data;
+    const {assignments, courses, addAssignment, updateAssignment, deleteAssignment} = AssigmentMethods();
+    const { trainers } = TrainerMethods();
+    const { students } = FeePaymentMethods();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
     const [assignmentToDelete, setAssignmentToDelete] = useState<Assignment | null>(null);
     
-    const initialFormState: Omit<Assignment, 'id' | 'status'> = { title: '', courseId: '', studentId: '', trainerId: '', dueDate: new Date().toISOString().split('T')[0], assignmentFileUrl: '' };
+    const initialFormState: any = { 
+        title: '', 
+        courseId: '', 
+        studentId: '', 
+        trainerId: '', 
+        dueDate: new Date().toISOString().split('T')[0], 
+        assignmentFile: undefined, 
+        assignmentFileUrl: '' 
+    };
+
     const [formState, setFormState] = useState(initialFormState);
 
     const getStudentName = (studentId: string) => students.find(s => s.id === studentId)?.name || 'N/A';
@@ -71,13 +85,16 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ d
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setFormState(prev => ({ ...prev, [name]: value, ...(name === 'courseId' && { studentId: '', trainerId: '' }) }));
+        setFormState((prev:any) => ({ ...prev, [name]: value, ...(name === 'courseId' && { studentId: '', trainerId: '' }) }));
     };
 
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const base64 = await toBase64(e.target.files[0]);
-            setFormState({ ...formState, assignmentFileUrl: base64 });
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          setFormState((prev:any) => ({
+            ...prev,
+            assignmentFile: file, 
+          }));
         }
     };
 
@@ -101,7 +118,13 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ d
         }
     };
 
-    const studentsForCourse = useMemo(() => students.filter(s => s.courseIds.includes(formState.courseId)), [students, formState.courseId]);
+    const studentsForCourse = useMemo(() =>
+        students.filter(s =>
+          s.courseIds?.some((c: any) => String(c.Id) === String(formState.courseId))
+        ),
+        [students, formState.courseId]
+      );
+
     const trainersForCourse = useMemo(() => trainers.filter(t => t.expertise.includes(formState.courseId)), [trainers, formState.courseId]);
 
     return (
@@ -120,7 +143,7 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ d
                         <td className="p-3 fw-semibold">{assignment.title}</td>
                         <td className="p-3">{getStudentName(assignment.studentId)}</td>
                         <td className="p-3">{getCourseName(assignment.courseId)}</td>
-                        <td className="p-3">{assignment.dueDate}</td>
+                        <td className="p-3">{(assignment.dueDate).substring(0,10)}</td>
                         <td className="p-3">
                             <span className={`badge rounded-pill ${
                                 assignment.status === 'Submitted' 
