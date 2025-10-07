@@ -7,54 +7,37 @@ const initialTrainers: Trainer[] = [
     { id: 't2', name: 'Jane Smith', email: 'jane.smith@example.com', expertise: ['c3', 'c4'], phone: '555-0102', address: '456 Code Street', imageUrl: `https://i.pravatar.cc/150?u=t2`, gender: 'Female' },
 ];
 
-
-const initialFeePayments: FeePayment[] = [
-    { id: 'f1', studentId: 's1', amount: 500, date: '2023-01-15', status: 'Paid', paymentMethod: 'Card' },
-    { id: 'f2', studentId: 's2', amount: 300, date: '2023-02-20', status: 'Paid', paymentMethod: 'Online' },
-    { id: 'f3', studentId: 's3', amount: 1500, date: '2023-03-10', status: 'Pending', paymentMethod: 'Cash' },
-    { id: 'f4', studentId: 's1', amount: 500, date: '2023-02-15', status: 'Paid', paymentMethod: 'Card' },
-];
-
 const initialExpenses: Expense[] = [
     { id: 'e1', description: 'January Rent', category: 'Rent', amount: 1000, date: '2023-01-05', comments: 'Monthly office rent' },
     { id: 'e2', description: 'Trainer Salaries', category: 'Salary', amount: 2500, date: '2023-01-28' },
     { id: 'e3', description: 'Internet Bill', category: 'Utilities', amount: 100, date: '2023-02-15', comments: 'High-speed fiber' },
 ];
 
-const initialAssignments: Assignment[] = [
-    { id: 'a1', title: 'Introductory Speech', courseId: 'c1', studentId: 's1', trainerId: 't1', dueDate: '2023-02-01', status: 'Submitted' },
-    { id: 'a2', title: 'Basic HTML Page', courseId: 'c3', studentId: 's2', trainerId: 't2', dueDate: '2023-03-01', status: 'Pending' },
-    { id: 'a3', title: 'Final Presentation', courseId: 'c1', studentId: 's1', trainerId: 't1', dueDate: '2023-03-15', status: 'Pending' },
-];
 
 const sanitizeUrl = (url?: string) => {
-  if (!url) return "";
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  if (url.startsWith('https//')) return url.replace('https//', 'https://');
-  return `${window.location.origin}${url}`;
+    if (!url) return "";
+    if (url.startsWith('http://') || url.startsWith('https://')) return url;
+    if (url.startsWith('https//')) return url.replace('https//', 'https://');
+    return `${window.location.origin}${url}`;
 };
 
 const dataUrlToBlob = (dataUrl: string): Blob => {
-  // data:[<mediatype>][;base64],<data>
-  const arr = dataUrl.split(',');
-  const mimeMatch = arr[0].match(/:(.*?);/);
-  const mime = mimeMatch ? mimeMatch[1] : 'image/png';
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
-  }
-  return new Blob([u8arr], { type: mime });
+    const arr = dataUrl.split(',');
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
 };
 
 const blobToFile = (blob: Blob, fileName: string): File => {
-  return new File([blob], fileName, { type: blob.type });
+    return new File([blob], fileName, { type: blob.type });
 };
 
-// -----------------------------
-// Main hook
-// -----------------------------
 export const useMockData = (): {
     courses: Course[];
     trainers: Trainer[];
@@ -84,11 +67,11 @@ export const useMockData = (): {
     const [courses, setCourses] = useState<Course[]>([]);
     const [trainers, setTrainers] = useState<Trainer[]>(initialTrainers);
     const [students, setStudents] = useState<Student[]>([]);
-    const [feePayments, setFeePayments] = useState<FeePayment[]>(initialFeePayments);
+    const [feePayments, setFeePayments] = useState<FeePayment[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
-    const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
+    const [assignments, setAssignments] = useState<Assignment[]>([]);
 
-    const fetchAPIData = async (): Promise<void> => {
+    const fetchCourses = async (): Promise<void> => {
         try {
             const web = new Web('https://smalsusinfolabs.sharepoint.com/sites/TSO');
             const res = await web.lists.getById('023e9425-6982-4e89-87d9-b1dd8534bf96').items.getAll();
@@ -109,84 +92,84 @@ export const useMockData = (): {
     const createId = (prefix: string): string => `${prefix}${Date.now()}`;
     const getCurrentDate = (): string => new Date().toISOString().split('T')[0];
 
- 
-const fetchAPIStudent = async (): Promise<Student[]> => {
-    try {
+
+    const fetchAPIStudent = async (): Promise<Student[]> => {
+        try {
+            const web = new Web('https://smalsusinfolabs.sharepoint.com/sites/TSO');
+
+            const res = await web.lists
+                .getById('25a7c502-9910-498e-898b-a0b37888a15e')
+                .items
+                .select(
+                    'Id',
+                    'Title',
+                    'emailAddress',
+                    'phoneNumber',
+                    'gender',
+                    'address',
+                    'status',
+                    'profilePicture',
+                    'joinDate',
+                    'courses/Id',
+                    'courses/Title'
+                )
+                .expand('courses')
+                .getAll();
+
+            console.log("Raw SharePoint response:", res);
+
+            const mappedStudents: Student[] = res.map(item => {
+                let imageUrl = "";
+                if (item.profilePicture && item.profilePicture.Url) {
+                    imageUrl = sanitizeUrl(item.profilePicture.Url);
+                } else if (item.profilePicture && item.profilePicture.fileName) {
+                    imageUrl = `https://smalsusinfolabs.sharepoint.com/sites/TSO/Pictures/Forms/Thumbnails/StudentImage/${item.profilePicture.fileName}`;
+                } else {
+                    // Default placeholder
+                    imageUrl = `https://i.pravatar.cc/150?u=student${item.Id}`;
+                }
+
+                return {
+                    id: String(item.Id),
+                    name: item.Title || "",
+                    email: item.emailAddress || "",
+                    phone: String(item.phoneNumber || ""),
+                    gender: item.gender || "",
+                    address: item.address || "",
+                    status: item.status || "Active",
+                    joinDate: item.joinDate ? new Date(item.joinDate).toISOString().split("T")[0] : "",
+                    imageUrl,  // Use constructed/sanitized URL
+                    courseIds: item.courses ? item.courses.map((c: { Id: number }) => String(c.Id)) : [],
+                    courseNames: item.courses ? item.courses.map((c: { Title: string }) => c.Title) : []
+                };
+            });
+
+            console.log("Mapped students with images:", mappedStudents);
+
+            setStudents(mappedStudents);
+            console.log("Students fetched successfully:", mappedStudents.length, "students");
+
+            return mappedStudents;
+
+        } catch (error) {
+            console.error("fetchStudents error ::", error);
+            return [];
+        }
+    };
+
+    // Upload helper for student images
+    const uploadStudentImage = async (file: File) => {
         const web = new Web('https://smalsusinfolabs.sharepoint.com/sites/TSO');
-
-        const res = await web.lists
-            .getById('25a7c502-9910-498e-898b-a0b37888a15e')
-            .items
-            .select(
-                'Id',
-                'Title',
-                'emailAddress',
-                'phoneNumber',
-                'gender',
-                'address',
-                'status',
-                'profilePicture',   
-                'joinDate',         
-                'courses/Id',
-                'courses/Title'
-            )
-            .expand('courses') 
-            .getAll();
-
-        console.log("Raw SharePoint response:", res);
-
-        const mappedStudents: Student[] = res.map(item => {
-            // Prefer profilePicture.Url if available (Picture/Hyperlink field), otherwise try fileName fallback
-            let imageUrl = "";
-            if (item.profilePicture && item.profilePicture.Url) {
-                imageUrl = sanitizeUrl(item.profilePicture.Url);
-            } else if (item.profilePicture && item.profilePicture.fileName) {
-                // Fallback to the thumbnails path if your library creates thumbnails this way
-                imageUrl = `https://smalsusinfolabs.sharepoint.com/sites/TSO/Pictures/Forms/Thumbnails/StudentImage/${item.profilePicture.fileName}`;
-            } else {
-                // Default placeholder
-                imageUrl = `https://i.pravatar.cc/150?u=student${item.Id}`;
-            }
-
-            return {
-                id: String(item.Id),
-                name: item.Title || "",
-                email: item.emailAddress || "",
-                phone: String(item.phoneNumber || ""),
-                gender: item.gender || "",
-                address: item.address || "",
-                status: item.status || "Active",
-                joinDate: item.joinDate ? new Date(item.joinDate).toISOString().split("T")[0] : "",
-                imageUrl,  // Use constructed/sanitized URL
-                courseIds: item.courses ? item.courses.map((c: { Id: number }) => String(c.Id)) : [],
-                courseNames: item.courses ? item.courses.map((c: { Title: string }) => c.Title) : []
-            };
-        });
-
-        console.log("Mapped students with images:", mappedStudents);
-
-        setStudents(mappedStudents);
-        console.log("Students fetched successfully:", mappedStudents.length, "students");
-
-        return mappedStudents;
-
-    } catch (error) {
-        console.error("fetchStudents error ::", error);
-        return [];
-    }
-};
-
-// Upload helper for student images
-const uploadStudentImage = async (file: File) => {
-  const web = new Web('https://smalsusinfolabs.sharepoint.com/sites/TSO');
-  const folder = web.getFolderByServerRelativeUrl("/sites/TSO/Pictures/StudentImage");
-  const uploadedFile = await folder.files.add(file.name, file, true);
-  return uploadedFile.data.ServerRelativeUrl; // ServerRelativeUrl
-};
+        const folder = web.getFolderByServerRelativeUrl("/sites/TSO/Pictures/StudentImage");
+        const uploadedFile = await folder.files.add(file.name, file, true);
+        return uploadedFile.data.ServerRelativeUrl; // ServerRelativeUrl
+    };
 
     useEffect(() => {
-        fetchAPIData().catch(console.error);
+        fetchCourses().catch(console.error);
         fetchAPIStudent().catch(console.error);
+        fetchFeePayments();
+        getAssignments();
     }, []);
 
 
@@ -227,7 +210,7 @@ const uploadStudentImage = async (file: File) => {
                 gender: data.gender,
                 address: data.address,
                 status: data.status || "Active",
-                joinDate: data.joinDate || new Date().toISOString().split("T")[0], 
+                joinDate: data.joinDate || new Date().toISOString().split("T")[0],
                 coursesId: { results: data.courseIds?.map(id => Number(id)) || [] },
             };
 
@@ -258,7 +241,6 @@ const uploadStudentImage = async (file: File) => {
             let profileFieldUpdate: any = null;
 
             if ((updatedStudent as any).imageFile) {
-                // If a new File object is provided
                 const serverRel = await uploadStudentImage((updatedStudent as any).imageFile as File);
                 profileFieldUpdate = { Url: serverRel, Description: 'Profile Picture' };
             } else if (updatedStudent.imageUrl && updatedStudent.imageUrl.startsWith('data:')) {
@@ -301,9 +283,9 @@ const uploadStudentImage = async (file: File) => {
                 .update(updateData);
 
             console.log("Student updated successfully!");
-            
+
             await fetchAPIStudent();
-            
+
             return { success: true };
         } catch (error) {
             console.error("updateStudent error ::", error);
@@ -314,16 +296,16 @@ const uploadStudentImage = async (file: File) => {
     const deleteStudent = async (studentId: string): Promise<{ success: boolean; error?: unknown }> => {
         try {
             const web = new Web('https://smalsusinfolabs.sharepoint.com/sites/TSO');
-            
+
             await web.lists
                 .getById('25a7c502-9910-498e-898b-a0b37888a15e')
                 .items.getById(Number(studentId))
                 .delete();
 
             console.log("Student deleted successfully!");
-            
+
             await fetchAPIStudent();
-            
+
             return { success: true };
         } catch (error) {
             console.error("deleteStudent error ::", error);
@@ -351,7 +333,7 @@ const uploadStudentImage = async (file: File) => {
             const res = await web.lists
                 .getById('023e9425-6982-4e89-87d9-b1dd8534bf96')
                 .items.add({
-                    Title: data.name,      
+                    Title: data.name,
                     category: data.category,
                     level: data.level,
                     duration: data.duration,
@@ -375,7 +357,7 @@ const uploadStudentImage = async (file: File) => {
             console.error("addCourse error ::", error);
         }
     };
-    
+
     const updateCourse = async (updatedCourse: Course): Promise<void> => {
         try {
             const web = new Web('https://smalsusinfolabs.sharepoint.com/sites/TSO');
@@ -403,7 +385,7 @@ const uploadStudentImage = async (file: File) => {
 
             await web.lists
                 .getById('023e9425-6982-4e89-87d9-b1dd8534bf96')
-                .items.getById(Number(courseId)) 
+                .items.getById(Number(courseId))
                 .delete();
 
             console.log("Course deleted ::", courseId);
@@ -415,6 +397,34 @@ const uploadStudentImage = async (file: File) => {
     };
 
 
+
+    const fetchFeePayments = async () => {
+        try {
+            const web = new Web('https://smalsusinfolabs.sharepoint.com/sites/TSO');
+            const items = await web.lists
+                .getById("29c80eac-d776-4043-819a-dab43a982585")
+                .items
+                .select("Id,Title,Student/Id,Student/Title,Amount,Date,Status,PaymentMethod")
+                .expand("Student")
+                .getAll();
+
+            const mapped = items.map((item: any) => ({
+                id: item.Id?.toString() || "",
+                studentId: item.Student?.Id?.toString() || "",
+                studentName: item.Student?.Title || "",
+                amount: Number(item.Amount) || 0,
+                date: item.Date ? item.Date.split("T")[0] : "",
+                status: item.Status || "",
+                paymentMethod: item.PaymentMethod || "",
+            }));
+
+            setFeePayments(mapped);
+            console.log(" Fee Payments fetched:", mapped);
+
+        } catch (err) {
+            console.error(" Error fetching fee payments:", err);
+        }
+    };
     const addFeePayment = (data: Omit<FeePayment, 'id'>): void => {
         const newPayment: FeePayment = { ...data, id: createId('f'), date: data.date || getCurrentDate() };
         setFeePayments(prev => [...prev, newPayment]);
@@ -435,6 +445,42 @@ const uploadStudentImage = async (file: File) => {
     };
     const deleteExpense = (expenseId: string): void => {
         setExpenses(prev => prev.filter(e => e.id !== expenseId));
+    };
+
+
+
+    const getAssignments = async () => {
+        try {
+            const web = new Web('https://smalsusinfolabs.sharepoint.com/sites/TSO');
+            const items = await web.lists
+                .getByTitle("TsharpersAssignment")
+                .items.select(
+                    "Id,Title,Course/Id,Course/Title,Student/Id,Student/Title,Trainer/Id,Trainer/Title,DueDate,AssignmentFile,Status"
+                )
+                .expand("Course,Student,Trainer")
+                .get();
+
+            const mappedData = items.map((item: any) => ({
+                id: item.Id.toString(),
+                title: item.Title,
+                courseId: item.Course?.Id?.toString() || "",
+                courseName: item.Course?.Title || "",
+                studentId: item.Student?.Id?.toString() || "",
+                studentName: item.Student?.Title || "",
+                trainerId: item.Trainer?.Id?.toString() || "",
+                trainerName: item.Trainer?.Title || "",
+                dueDate: item.DueDate,
+                status: item.Status || "Pending",
+                assignmentFileUrl: item.AssignmentFile?.Url || "",
+            }));
+
+
+            setAssignments(mappedData);
+
+        } catch (err) {
+            console.error("Error fetching assignments:", err);
+            throw err;
+        }
     };
 
     const addAssignment = (data: Omit<Assignment, 'id' | 'status'>): void => {
