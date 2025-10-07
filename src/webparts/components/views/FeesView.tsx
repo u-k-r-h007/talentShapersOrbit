@@ -5,7 +5,6 @@ import Modal from '../common/Modal';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { useMockData } from '../../hooks/useMockData';
 import type { FeePayment } from '../../types';
-import { FeePaymentMethods } from '../services/FeePaymentMethods';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -39,7 +38,7 @@ const FormSelect: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { lab
 
 
 const FeesView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) => {
-    const { feePayments, students , addFeePayment, updateFeePayment, deleteFeePayment} = FeePaymentMethods();
+    const { feePayments, students, addFeePayment, updateFeePayment, deleteFeePayment } = data;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPayment, setEditingPayment] = useState<FeePayment | null>(null);
     const [paymentToDelete, setPaymentToDelete] = useState<FeePayment | null>(null);

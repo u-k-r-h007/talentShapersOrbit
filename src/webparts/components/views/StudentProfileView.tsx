@@ -8,8 +8,7 @@ interface StudentProfileProps {
 }
 
 const StudentProfileView: React.FC<StudentProfileProps> = ({ studentId, data, onBack }) => {
-    const { students, courses, feePayments, assignments } = data;
-
+    const { students, feePayments, courses, assignments} = data;
     const student = students.find(s => s.id === studentId);
     const studentCourses = courses.filter(c => student?.courseIds.includes(c.id));
     const payments = feePayments.filter(p => p.studentId === studentId);
@@ -23,7 +22,6 @@ const StudentProfileView: React.FC<StudentProfileProps> = ({ studentId, data, on
             </div>
         );
     }
-    
     const totalPaid = payments.filter(p => p.status === 'Paid').reduce((sum, p) => sum + p.amount, 0);
     const totalFee = studentCourses.reduce((sum, course) => sum + course.totalFee, 0);
     const balanceDue = totalFee - totalPaid;
@@ -156,7 +154,7 @@ const StudentProfileView: React.FC<StudentProfileProps> = ({ studentId, data, on
                                             <tr key={a.id}>
                                                 <td className="p-3 fw-semibold">{a.title}</td>
                                                 <td className="p-3">{courses.find(c=>c.id === a.courseId)?.name || 'N/A'}</td>
-                                                <td className="p-3">{a.dueDate}</td>
+                                                <td className="p-3">{a.dueDate.substring(0,10)}</td>
                                                 <td className="p-3">
                                                     <span className={`badge rounded-pill ${ a.status === 'Submitted' ? 'text-bg-success' : 'text-bg-secondary' }`}>{a.status}</span>
                                                 </td>

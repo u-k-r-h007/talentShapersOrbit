@@ -4,7 +4,6 @@ import Modal from '../common/Modal';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { useMockData } from '../../hooks/useMockData';
 import type { Trainer } from '../../types';
-import { TrainerMethods } from "../services/TrainerMethods";
 
 // Icons for actions
 const EditIcon: React.FC<{className?: string}> = (props: {className?: string}) => (
@@ -53,7 +52,7 @@ const TrainersView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data
         imageFile: null, 
       };
     const [formState, setFormState] = useState(initialFormState);
-    const { trainers,courses, addTrainer, updateTrainer, deleteTrainer } = TrainerMethods();
+    const { trainers, courses, addTrainer, updateTrainer, deleteTrainer } = data;
 
     const getExpertiseNames = (expertiseIds: string[]) => {
         return expertiseIds

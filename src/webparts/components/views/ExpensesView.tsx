@@ -5,7 +5,6 @@ import Modal from '../common/Modal';
 import ConfirmationModal from '../common/ConfirmationModal';
 import type { Expense } from '../../types';
 import { useMockData } from '../../hooks/useMockData';
-import { ExpensesMethods } from '../services/ExpensesMethods';
 
 // Icons
 const EditIcon: React.FC<{className?: string}> = (props) => (
@@ -58,7 +57,7 @@ const FormTextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> &
     const [formState, setFormState] = useState(initialFormState);
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-    const { expenseData, addExpense, updateExpense, deleteExpense } = ExpensesMethods();
+    const { expenses, addExpense, updateExpense, deleteExpense } = data;
     
     const handleOpenModal = (expense: any) => {
         if (expense) {
@@ -160,7 +159,7 @@ const FormTextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> &
                 </button>
             </div>
             <Table headers={['Description', 'Category', 'Amount', 'Date', 'Bill', 'Actions']}>
-                {expenseData.map((item:any) => (
+                {expenses.map((item:any) => (
                     <tr key={item.id} className="align-middle">
                         <td className="p-3">
                             <div className="fw-semibold">{item.Description}</div>

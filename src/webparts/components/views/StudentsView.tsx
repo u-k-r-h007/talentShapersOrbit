@@ -54,10 +54,11 @@ const StudentsView: React.FC<StudentsViewProps> = ({ data, onViewProfile }) => {
     const [editingStudent, setEditingStudent] = useState<Student | null>(null);
     const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
 
-    const initialFormState: Omit<Student, 'id' | 'joinDate'> = { name: '', email: '', phone: '', courseIds: [], address: '', imageUrl: '', gender: 'Male', status: 'Active' };
+    const initialFormState: any = { name: '', email: '', phone: '', courseIds: [], address: '', imageUrl: '', gender: 'Male', status: 'Active' };
     const [formState, setFormState] = useState(initialFormState);
 
     const getCourseNames = (courseIds: string[]) => {
+      
         return courseIds.map(id => courses.find(c => c.id === id)?.name).filter(Boolean).join(', ');
     };
     
@@ -84,7 +85,7 @@ const StudentsView: React.FC<StudentsViewProps> = ({ data, onViewProfile }) => {
 
     const handleCourseChange = (courseId: string) => {
         const newCourseIds = formState.courseIds.includes(courseId)
-            ? formState.courseIds.filter(id => id !== courseId)
+            ? formState.courseIds.filter((id:any) => id !== courseId)
             : [...formState.courseIds, courseId];
         setFormState({ ...formState, courseIds: newCourseIds });
     };

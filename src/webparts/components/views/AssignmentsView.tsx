@@ -5,9 +5,6 @@ import Modal from '../common/Modal';
 import ConfirmationModal from '../common/ConfirmationModal';
 import { useMockData } from '../../hooks/useMockData';
 import type { Assignment } from '../../types';
-import { AssigmentMethods } from '../services/AssigmentMethods';
-import { TrainerMethods } from '../services/TrainerMethods';
-import { FeePaymentMethods } from '../services/FeePaymentMethods';
 
 // Icons
 const EditIcon: React.FC<{className?: string}> = (props) => (
@@ -44,9 +41,7 @@ const FormSelect: React.FC<React.SelectHTMLAttributes<HTMLSelectElement> & { lab
 // });
 
 const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) => {
-    const {assignments, courses, addAssignment, updateAssignment, deleteAssignment} = AssigmentMethods();
-    const { trainers } = TrainerMethods();
-    const { students } = FeePaymentMethods();
+    const { courses, trainers, students, assignments, addAssignment, updateAssignment, deleteAssignment } = data;
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
     const [assignmentToDelete, setAssignmentToDelete] = useState<Assignment | null>(null);
@@ -64,7 +59,7 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ d
     const [formState, setFormState] = useState(initialFormState);
 
     const getStudentName = (studentId: string) => students.find(s => s.id === studentId)?.name || 'N/A';
-    const getCourseName = (courseId: string) => courses.find(c => c.id === courseId)?.name || 'N/A';
+    const getCourseName = (courseId: string) => courses.find((c:any) => c.id === courseId)?.name || 'N/A';
     
     const handleOpenModal = (assignment: Assignment | null = null) => {
         if (assignment) {
@@ -117,14 +112,8 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ d
             setAssignmentToDelete(null);
         }
     };
-
-    const studentsForCourse = useMemo(() =>
-        students.filter(s =>
-          s.courseIds?.some((c: any) => String(c.Id) === String(formState.courseId))
-        ),
-        [students, formState.courseId]
-      );
-
+    
+    const studentsForCourse = useMemo(() => students.filter(s => s.courseIds.includes(formState.courseId)), [students, formState.courseId]);
     const trainersForCourse = useMemo(() => trainers.filter(t => t.expertise.includes(formState.courseId)), [trainers, formState.courseId]);
 
     return (
@@ -138,7 +127,7 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ d
                 </button>
             </div>
             <Table headers={['Title', 'Student', 'Course', 'Due Date', 'Status', 'File', 'Actions']}>
-                {assignments.map(assignment => (
+                {assignments.map((assignment:any) => (
                     <tr key={assignment.id} className="align-middle">
                         <td className="p-3 fw-semibold">{assignment.title}</td>
                         <td className="p-3">{getStudentName(assignment.studentId)}</td>
@@ -190,7 +179,7 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ d
                     <FormInput label="Assignment Title" name="title" value={formState.title} onChange={handleInputChange} required />
                     <FormSelect label="Course" name="courseId" value={formState.courseId} onChange={handleInputChange} required>
                         <option value="">Select a course</option>
-                        {courses.map(course => <option key={course.id} value={course.id}>{course.name}</option>)}
+                        {courses.map((course:any) => <option key={course.id} value={course.id}>{course.name}</option>)}
                     </FormSelect>
                     <FormSelect label="Student" name="studentId" value={formState.studentId} onChange={handleInputChange} required disabled={!formState.courseId}>
                         <option value="">Select a student</option>

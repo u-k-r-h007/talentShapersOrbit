@@ -1,8 +1,6 @@
 import * as React from 'react';
 import Card from '../common/Card';
 import { useMockData } from '../../hooks/useMockData';
-import { ExpensesMethods } from '../services/ExpensesMethods';
-import { TrainerMethods } from '../services/TrainerMethods';
 // import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const cardColors = {
@@ -13,10 +11,7 @@ const cardColors = {
 }
 
 const DashboardView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) => {
-    const { students, courses, feePayments } = data;
-    const { trainers } = TrainerMethods();
-    const { expenseData } = ExpensesMethods();
-
+    const { students, courses, trainers, feePayments, expenses } = data;
     const totalRevenue = feePayments.filter(f => f.status === 'Paid').reduce((sum, f) => sum + f.amount, 0);
     const activeStudentsCount = students.filter(s => s.status === 'Active').length;
     
@@ -44,7 +39,7 @@ const DashboardView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ dat
           
     
         processItems(feePayments, 'Revenue');
-        processItems(expenseData, 'Expenses');
+        processItems(expenses, 'Expenses');
         
         const chartData = Object.keys(monthlyData).map(month => ({
             name: month,
@@ -125,7 +120,7 @@ const DashboardView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ dat
                                         </li>
                                     );
                                 })}
-                                {expenseData.slice(-2).reverse().map(expense => (
+                                {expenses.slice(-2).reverse().map(expense => (
                                     <li key={expense.id} className="list-group-item d-flex justify-content-between align-items-center">
                                         <span>Expense: <span className="text-danger fw-semibold">{expense.Description}</span></span>
                                         <span className="fw-bold text-danger">-₹{expense.Amount}</span>
