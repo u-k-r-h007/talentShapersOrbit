@@ -19,9 +19,11 @@
     "@microsoft/sp-office-ui-fabric-core": "1.21.1",
     "@microsoft/sp-property-pane": "1.21.1",
     "@microsoft/sp-webpart-base": "1.21.1",
+    "chart.js": "^4.5.0",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
     "react": "17.0.1",
+    "react-chartjs-2": "^5.3.0",
     "react-dom": "17.0.1",
     "sp-pnp-js": "^3.0.10",
     "tslib": "2.3.1"
