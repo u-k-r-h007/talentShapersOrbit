@@ -5,7 +5,7 @@ export interface Student {
   email: string;
   phone: string;
   courseIds: string[];
-  joinDate: string;
+  joinDate?: string;
   imageUrl?: string;
   address?: string;
   gender: 'Male' | 'Female' | 'Other';
