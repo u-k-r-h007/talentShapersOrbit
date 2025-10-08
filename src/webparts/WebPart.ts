@@ -10,6 +10,7 @@ import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 import * as strings from 'WebPartStrings';
 import App from './App';
 import pnp from 'sp-pnp-js';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 export interface IWebPartProps {
   description: string;
