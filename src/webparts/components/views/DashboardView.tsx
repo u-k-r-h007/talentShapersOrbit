@@ -1,7 +1,7 @@
 import * as React from 'react';
 import Card from '../common/Card';
 import { useMockData } from '../../hooks/useMockData';
-// import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const cardColors = {
     students: { bg: 'bg-primary-subtle', icon: 'text-primary' },
@@ -11,40 +11,32 @@ const cardColors = {
 }
 
 const DashboardView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ data }) => {
-    const { students, courses, trainers, feePayments, expenses } = data;
+    const { students, trainers, courses, feePayments, expensesData } = data;
+
     const totalRevenue = feePayments.filter(f => f.status === 'Paid').reduce((sum, f) => sum + f.amount, 0);
     const activeStudentsCount = students.filter(s => s.status === 'Active').length;
     
     const processMonthlyData = () => {
         const monthlyData: { [key: string]: { Revenue: number, Expenses: number } } = {};
-        const processItems = (items: any[], type: 'Revenue' | 'Expenses') => {
+        const processItems = (items: (typeof feePayments | typeof expensesData), type: 'Revenue' | 'Expenses') => {
             items.forEach(item => {
-              // Skip unpaid revenue
-              if (type === 'Revenue' && item.status !== 'Paid') return;
-          
-              // Pick correct fields based on type
-              const dateStr = type === 'Revenue' ? item.date : item.Date;
-              const amount = type === 'Revenue' ? item.amount : item.Amount;
-          
-              const dateObj = new Date(dateStr);
-              if (isNaN(dateObj.getTime())) return; // skip invalid dates
-          
-              const month = dateObj.toLocaleString('default', { month: 'short', year: 'numeric' });
-          
-              if (!monthlyData[month]) monthlyData[month] = { Revenue: 0, Expenses: 0 };
-          
-              monthlyData[month][type] += Number(amount) || 0;
+                if (type === 'Revenue' && (item as any).status !== 'Paid') return;
+    
+                const month = new Date(item.date).toLocaleString('default', { month: 'short', year: 'numeric' });
+                if (!monthlyData[month]) {
+                    monthlyData[month] = { Revenue: 0, Expenses: 0 };
+                }
+                monthlyData[month][type] += item.amount;
             });
-          };
-          
+        };
     
         processItems(feePayments, 'Revenue');
-        processItems(expenses, 'Expenses');
+        processItems(expensesData, 'Expenses');
         
         const chartData = Object.keys(monthlyData).map(month => ({
             name: month,
             ...monthlyData[month]
-        })).sort((a, b) => new Date(a.name) as any - (new Date(b.name) as any));
+        })).sort((a, b) => new Date(a.name).getTime() - (new Date(b.name).getTime())); // Use getTime() for proper sorting
     
         return chartData;
     };
@@ -77,29 +69,26 @@ const DashboardView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ dat
                             <h2 className="h5 mb-0">Monthly Financial Overview</h2>
                         </div>
                         <div className="card-body">
-                            <div className="chart-placeholder" style={{ height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
-                                <div className="text-muted mb-3">Chart visualization will be available when recharts is installed</div>
-                                <div className="table-responsive">
-                                    <table className="table table-sm">
-                                        <thead>
-                                            <tr>
-                                                <th>Month</th>
-                                                <th>Revenue</th>
-                                                <th>Expenses</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {chartData.map((item: any, index: number) => (
-                                                <tr key={index}>
-                                                    <td>{item.name}</td>
-                                                    <td className="text-success">${item.Revenue}</td>
-                                                    <td className="text-danger">${item.Expenses}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+                            {/* REPLACE THIS SECTION WITH THE RECHARTS COMPONENTS */}
+                            <ResponsiveContainer width="100%" height={300}>
+                                <BarChart
+                                    data={chartData}
+                                    margin={{
+                                        top: 5,
+                                        right: 30,
+                                        left: 20,
+                                        bottom: 5,
+                                    }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" />
+                                    <YAxis />
+                                    <Tooltip />
+                                    <Legend />
+                                    <Bar dataKey="Revenue" fill="#8884d8" /> {/* Blue color for Revenue */}
+                                    <Bar dataKey="Expenses" fill="#ff4d4d" /> {/* Red color for Expenses */}
+                                </BarChart>
+                            </ResponsiveContainer>
                         </div>
                     </div>
                 </div>
@@ -120,10 +109,10 @@ const DashboardView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({ dat
                                         </li>
                                     );
                                 })}
-                                {expenses.slice(-2).reverse().map(expense => (
+                                {expensesData.slice(-2).reverse().map(expense => (
                                     <li key={expense.id} className="list-group-item d-flex justify-content-between align-items-center">
-                                        <span>Expense: <span className="text-danger fw-semibold">{expense.Description}</span></span>
-                                        <span className="fw-bold text-danger">-₹{expense.Amount}</span>
+                                        <span>Expense: <span className="text-danger fw-semibold">{expense.description}</span></span>
+                                        <span className="fw-bold text-danger">-₹{expense.amount}</span>
                                     </li>
                                 ))}
                             </ul>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Student, Course } from "../types";
 import { web } from "../PnpUrl";
-import { Web } from "sp-pnp-js";
+import {  Web } from "sp-pnp-js";
 
 export const useMockData = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -12,7 +12,14 @@ export const useMockData = () => {
   const [expenses, setExpenseData] = useState<any[]>([]);
 
   // expenses
-
+    const expensesData = expenses.map((item)=>({
+    id: item.Id.toString(),
+    description: item.Description,
+    category: item.Category,
+    amount: item.Amount,
+    date: item.Date.substring(0,10),
+    comments : item.Comments
+  }))
   // Upload image to Reciept picture library
   const uploadImageToLibrary = async (file: File): Promise<string> => {
     try {
@@ -955,6 +962,7 @@ export const useMockData = () => {
   };
 
   return {
+    expensesData,
     expenses,
     addExpense,
     updateExpense,
