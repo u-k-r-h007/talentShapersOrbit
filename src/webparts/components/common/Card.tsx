@@ -1,9 +1,10 @@
-import * as React from 'react';
+import React from 'react';
 
 interface CardProps {
   title: string;
   value: string | number;
-  icon: React.ReactElement;
+  // FIX: Changed icon prop type to `React.ReactElement<any>` to resolve a TypeScript error with `React.cloneElement`. This explicitly allows passing new props like `className` to the cloned icon element.
+  icon: React.ReactElement<any>;
   colors: {
     bg: string;
     icon: string;

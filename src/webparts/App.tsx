@@ -1,5 +1,4 @@
-import * as React from 'react';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import DashboardView from './components/views/DashboardView';
 import StudentsView from './components/views/StudentsView';
@@ -38,6 +37,11 @@ const App: React.FC = () => {
     setSelectedStudentId(null);
   };
 
+  const handleSidebarNavigation = (view: ViewType) => {
+    setActiveView(view);
+    setSelectedStudentId(null);
+  };
+
   const renderView = () => {
     if (selectedStudentId) {
       return <StudentProfileView studentId={selectedStudentId} data={mockData} onBack={handleBackToList} />;
@@ -65,7 +69,7 @@ const App: React.FC = () => {
 
   return (
     <div className="d-flex vh-100 bg-body-tertiary">
-      <Sidebar activeView={activeView} setActiveView={setActiveView} theme={theme} toggleTheme={toggleTheme} />
+      <Sidebar activeView={activeView} setActiveView={handleSidebarNavigation} theme={theme} toggleTheme={toggleTheme} />
       <main className="flex-grow-1 p-4 p-md-5 overflow-auto">
         {renderView()}
       </main>
