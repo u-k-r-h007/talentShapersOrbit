@@ -38,7 +38,9 @@ const StudentProfileView: React.FC<StudentProfileProps> = ({ studentId, data, on
                             <svg className="me-1" width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
                             Back to Students
                         </button>
-                        <h1 className="h2 mb-0">{student.name}</h1>
+                        <h1 className="h2 mb-0 text-body dark:text-white">
+                            {student.name}
+                        </h1>
                         <p className="text-body-secondary mt-1">{student.email} &bull; {student.phone}</p>
                     </div>
                 </div>
