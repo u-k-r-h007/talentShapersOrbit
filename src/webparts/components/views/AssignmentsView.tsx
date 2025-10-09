@@ -82,8 +82,6 @@ const FormSelect: React.FC<
   </div>
 );
 
-
-
 const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
   data,
 }) => {
@@ -123,7 +121,17 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
   const handleOpenModal = (assignment: Assignment | null = null) => {
     if (assignment) {
       setEditingAssignment(assignment);
-      setFormState(assignment);
+      setFormState({
+        title: assignment.title || "",
+        courseId: assignment.courseId || "",
+        studentId: assignment.studentId || "",
+        trainerId: assignment.trainerId || "",
+        dueDate: assignment.dueDate
+          ? assignment.dueDate.substring(0, 10)
+          : new Date().toISOString().split("T")[0],
+        assignmentFile: undefined,
+        assignmentFileUrl: assignment.assignmentFileUrl || "",
+      });
     } else {
       setEditingAssignment(null);
       setFormState(initialFormState);
@@ -165,11 +173,17 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
       formState.studentId &&
       formState.trainerId
     ) {
+      const updatedData = {
+        ...formState,
+        dueDate: new Date(formState.dueDate).toISOString(),
+      };
+
       if (editingAssignment) {
-        updateAssignment(formState as Assignment);
+        updateAssignment({ ...editingAssignment, ...updatedData });
       } else {
-        addAssignment(formState);
+        addAssignment(updatedData);
       }
+
       handleCloseModal();
     } else {
       alert("Please fill all fields.");
