@@ -22,9 +22,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeView, setActiveView, theme, tog
   return (
     <aside className="d-flex flex-column flex-shrink-0 bg-body-secondary shadow-sm" style={{ width: '280px' }}>
         <div className="p-3 border-bottom">
-            <h1 className="h5 text-center mb-0">
-                Talent Shapers <span className="text-primary">Orbit</span>
-            </h1>
+          <h1 className="h5 text-center mb-0">
+            <span className="text-body">Talent Shapers</span>
+            <span className="text-primary"> Orbit</span>
+          </h1>
         </div>
         <ul className="nav nav-pills flex-column mb-auto p-3">
             {navItems.map(item => {

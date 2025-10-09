@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { Student, Course } from "../types";
 import { web } from "../PnpUrl";
-import {  Web } from "sp-pnp-js";
+import { Web } from "sp-pnp-js";
 
 export const useMockData = () => {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -12,14 +12,14 @@ export const useMockData = () => {
   const [expenses, setExpenseData] = useState<any[]>([]);
 
   // expenses
-    const expensesData = expenses.map((item)=>({
+  const expensesData = expenses.map((item) => ({
     id: item.Id.toString(),
     description: item.Description,
     category: item.Category,
     amount: item.Amount,
-    date: item.Date.substring(0,10),
-    comments : item.Comments
-  }))
+    date: item.Date.substring(0, 10),
+    comments: item.Comments,
+  }));
   // Upload image to Reciept picture library
   const uploadImageToLibrary = async (file: File): Promise<string> => {
     try {
@@ -36,8 +36,6 @@ export const useMockData = () => {
         true
       );
 
-      // Return the server relative URL
-      console.log("site url ", uploadResult.data.ServerRelativeUrl);
       return uploadResult.data.ServerRelativeUrl;
     } catch (error: any) {
       console.log("Error uploading image to library:", error);
@@ -162,7 +160,7 @@ export const useMockData = () => {
       }
 
       const updatedRes = await web.lists
-        .getByTitle("TsharperExpenses")
+        .getById("7dc4e19a-3157-4093-9672-6e28e73434b2")
         .items.getById(item.Id)
         .update(updateData);
       await fetchExpenses();
@@ -170,8 +168,6 @@ export const useMockData = () => {
       setExpenseData((prev) =>
         prev.map((e) => (e.Id === item.Id ? { ...e, ...updatedRes.data } : e))
       );
-
-      console.log("Expense updated successfully", updatedRes.data);
     } catch (error: any) {
       console.log("update expenses error :: ", error);
     }
@@ -179,7 +175,7 @@ export const useMockData = () => {
 
   const fetchExpenses = async () => {
     try {
-      const res = await web.lists.getByTitle("TsharperExpenses").items.get();
+      const res = await web.lists.getById("7dc4e19a-3157-4093-9672-6e28e73434b2").items.get();
 
       // Map expenses and parse the Hyperlink and Picture format
       const expensesWithImages = res.map((expense: any) => {
@@ -243,7 +239,7 @@ export const useMockData = () => {
       }
 
       const res = await web.lists
-        .getByTitle("TsharperExpenses")
+        .getById("7dc4e19a-3157-4093-9672-6e28e73434b2")
         .items.add(expenseData);
 
       // Store image reference in Reciept list (optional metadata)
@@ -256,7 +252,6 @@ export const useMockData = () => {
       }
 
       setExpenseData((prev) => [...prev, { ...res.data, billUrl: imageUrl }]);
-      console.log("Expense added successfully", res.data);
     } catch (err: any) {
       console.log("add expenses error :: ", err);
     }
@@ -265,12 +260,11 @@ export const useMockData = () => {
   // Delete Expenses Data
   const deleteExpense = async (item: any): Promise<any> => {
     try {
-      const deleteRes = await web.lists
-        .getByTitle("TsharperExpenses")
+      await web.lists
+        .getById("7dc4e19a-3157-4093-9672-6e28e73434b2")
         .items.getById(item.Id)
         .delete();
       setExpenseData((prev) => prev.filter((e) => e.Id !== item.Id));
-      console.log("deleted item :: ", deleteRes);
     } catch (error: any) {
       console.log("delete expenses :: ", error);
     }
@@ -294,7 +288,7 @@ export const useMockData = () => {
         fileUrl = await uploadFileToLibrary(assignment.assignmentFile);
       }
 
-      await web.lists.getByTitle("TsharpersAssignment").items.add({
+      await web.lists.getById("1d5452dc-7b1d-430b-b316-0680492ffd48").items.add({
         Title: assignment.title,
         CourseId: assignment.courseId ? parseInt(assignment.courseId) : null,
         StudentId: assignment.studentId ? parseInt(assignment.studentId) : null,
@@ -319,7 +313,7 @@ export const useMockData = () => {
   const getAssignments = async () => {
     try {
       const items = await web.lists
-        .getByTitle("TsharpersAssignment")
+        .getById("1d5452dc-7b1d-430b-b316-0680492ffd48")
         .items.select(
           "Id,Title,Course/Id,Course/Title,Student/Id,Student/Title,Trainer/Id,Trainer/Title,DueDate,AssignmentFile,Status"
         )
@@ -362,7 +356,7 @@ export const useMockData = () => {
         };
       }
       await web.lists
-        .getByTitle("TsharpersAssignment")
+        .getById("1d5452dc-7b1d-430b-b316-0680492ffd48")
         .items.getById(parseInt(assignment.id))
         .update({
           Title: assignment.title,
@@ -388,7 +382,7 @@ export const useMockData = () => {
   const deleteAssignment = async (id: string) => {
     try {
       await web.lists
-        .getByTitle("TsharpersAssignment")
+        .getById("1d5452dc-7b1d-430b-b316-0680492ffd48")
         .items.getById(parseInt(id))
         .delete();
       await getAssignments();
@@ -404,7 +398,7 @@ export const useMockData = () => {
   const fetchFeePayments = async () => {
     try {
       const items = await web.lists
-        .getByTitle("TsharpersFeeCollection")
+        .getById("29c80eac-d776-4043-819a-dab43a982585")
         .items.select(
           "Id,Title,Student/ID,Student/Title,Amount,Date,Status,PaymentMethod"
         )
@@ -433,7 +427,7 @@ export const useMockData = () => {
   // Add Fee Payment
   const addFeePayment = async (data: any) => {
     try {
-      await web.lists.getByTitle("TsharpersFeeCollection").items.add({
+      await web.lists.getById("29c80eac-d776-4043-819a-dab43a982585").items.add({
         Title: "Fee Payment",
         StudentId: parseInt(data.studentId),
         Amount: data.amount,
@@ -451,7 +445,7 @@ export const useMockData = () => {
   const updateFeePayment = async (updatedPayment: any) => {
     try {
       await web.lists
-        .getByTitle("TsharpersFeeCollection")
+        .getById("29c80eac-d776-4043-819a-dab43a982585")
         .items.getById(parseInt(updatedPayment.id))
         .update({
           StudentId: parseInt(updatedPayment.studentId),
@@ -471,7 +465,7 @@ export const useMockData = () => {
   const deleteFeePayment = async (paymentId: string) => {
     try {
       await web.lists
-        .getByTitle("TsharpersFeeCollection")
+        .getById("29c80eac-d776-4043-819a-dab43a982585")
         .items.getById(parseInt(paymentId))
         .delete();
       setFeePayments((prev) => prev.filter((p) => p.id !== paymentId));
@@ -485,7 +479,7 @@ export const useMockData = () => {
     const getTrainers = async (): Promise<void> => {
       try {
         const list = await web.lists
-          .getByTitle("TsharperTrainer")
+          .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
           .items.select(
             "Id,Title,FullName,Email,Phone,Gender,Profile,Address,Expertise/Id,Expertise/Title"
           )
@@ -541,7 +535,7 @@ export const useMockData = () => {
           }
         : null;
 
-      const item = await web.lists.getByTitle("TsharperTrainer").items.add({
+      const item = await web.lists.getById("ed766b42-ed7b-4f73-874e-ed69f7f44975").items.add({
         Title: trainer.name,
         FullName: trainer.name,
         Email: trainer.email,
@@ -583,7 +577,7 @@ export const useMockData = () => {
         : null;
 
       await web.lists
-        .getByTitle("TsharperTrainer")
+        .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
         .items.getById(parseInt(trainer.id))
         .update({
           FullName: trainer.name,
@@ -616,7 +610,7 @@ export const useMockData = () => {
   const deleteTrainer = async (id: string): Promise<void> => {
     try {
       await web.lists
-        .getByTitle("TsharperTrainer")
+        .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
         .items.getById(parseInt(id))
         .delete();
       setTrainers(trainers.filter((t) => t.id !== id));
