@@ -5,6 +5,7 @@ import Modal from "../common/Modal";
 import ConfirmationModal from "../common/ConfirmationModal";
 import { useMockData } from "../../hooks/useMockData";
 import type { Assignment } from "../../types";
+import { web } from "../../PnpUrl";
 
 // Icons
 const EditIcon: React.FC<{ className?: string }> = (props) => (
@@ -85,15 +86,8 @@ const FormSelect: React.FC<
 const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
   data,
 }) => {
-  const {
-    courses,
-    trainers,
-    students,
-    assignments,
-    addAssignment,
-    updateAssignment,
-    deleteAssignment,
-  } = data;
+  const { courses, trainers, students, assignments, getAssignments } = data;
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(
     null
@@ -108,16 +102,41 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
     trainerId: "",
     dueDate: new Date().toISOString().split("T")[0],
     assignmentFile: undefined,
-    assignmentFileUrl: "",
   };
 
   const [formState, setFormState] = useState(initialFormState);
 
+  // 🔹 Helper functions
   const getStudentName = (studentId: string) =>
     students.find((s) => s.id === studentId)?.name || "N/A";
   const getCourseName = (courseId: string) =>
     courses.find((c: any) => c.id === courseId)?.name || "N/A";
 
+  // 🔹 File upload (default SharePoint attachment)
+  const uploadAttachment = async (itemId: number, file: File) => {
+    const buffer = await file.arrayBuffer();
+
+    // Delete previous attachments first
+    const attachments = await web.lists
+      .getById("1d5452dc-7b1d-430b-b316-0680492ffd48")
+      .items.getById(itemId)
+      .attachmentFiles.get();
+    for (const f of attachments) {
+      await web.lists
+        .getById("1d5452dc-7b1d-430b-b316-0680492ffd48")
+        .items.getById(itemId)
+        .attachmentFiles.getByName(f.FileName)
+        .delete();
+    }
+
+    const uploaded = await web.lists
+      .getById("1d5452dc-7b1d-430b-b316-0680492ffd48")
+      .items.getById(itemId)
+      .attachmentFiles.add(file.name, buffer);
+    return `${window.location.origin}${uploaded.data.ServerRelativeUrl}`;
+  };
+
+  // 🔹 Open modal
   const handleOpenModal = (assignment: Assignment | null = null) => {
     if (assignment) {
       setEditingAssignment(assignment);
@@ -126,11 +145,10 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
         courseId: assignment.courseId || "",
         studentId: assignment.studentId || "",
         trainerId: assignment.trainerId || "",
-        dueDate: assignment.dueDate
-          ? assignment.dueDate.substring(0, 10)
-          : new Date().toISOString().split("T")[0],
+        dueDate:
+          assignment.dueDate.substring(0, 10) ||
+          new Date().toISOString().split("T")[0],
         assignmentFile: undefined,
-        assignmentFileUrl: assignment.assignmentFileUrl || "",
       });
     } else {
       setEditingAssignment(null);
@@ -149,51 +167,79 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormState((prev: any) => ({
-      ...prev,
-      [name]: value,
-      ...(name === "courseId" && { studentId: "", trainerId: "" }),
-    }));
+    setFormState((prev: any) => ({ ...prev, [name]: value }));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setFormState((prev: any) => ({
-        ...prev,
-        assignmentFile: file,
-      }));
-    }
+    if (file) setFormState((prev: any) => ({ ...prev, assignmentFile: file }));
   };
 
-  const handleSubmit = () => {
+  // 🔹 Submit
+  const handleSubmit = async () => {
     if (
-      formState.title &&
-      formState.courseId &&
-      formState.studentId &&
-      formState.trainerId
+      !formState.title ||
+      !formState.courseId ||
+      !formState.studentId ||
+      !formState.trainerId
     ) {
-      const updatedData = {
-        ...formState,
-        dueDate: new Date(formState.dueDate).toISOString(),
-      };
+      alert("Please fill all fields.");
+      return;
+    }
+
+    try {
+      const list = web.lists.getById("1d5452dc-7b1d-430b-b316-0680492ffd48");
 
       if (editingAssignment) {
-        updateAssignment({ ...editingAssignment, ...updatedData });
+        // UPDATE
+        await list.items.getById(parseInt(editingAssignment.id)).update({
+          Title: formState.title,
+          CourseId: parseInt(formState.courseId),
+          StudentId: parseInt(formState.studentId),
+          TrainerId: parseInt(formState.trainerId),
+          DueDate: formState.dueDate,
+        });
+
+        if (formState.assignmentFile) {
+          await uploadAttachment(
+            parseInt(editingAssignment.id),
+            formState.assignmentFile
+          );
+        }
       } else {
-        addAssignment(updatedData);
+        // CREATE
+        const addRes = await list.items.add({
+          Title: formState.title,
+          CourseId: parseInt(formState.courseId),
+          StudentId: parseInt(formState.studentId),
+          TrainerId: parseInt(formState.trainerId),
+          DueDate: formState.dueDate,
+        });
+
+        if (formState.assignmentFile) {
+          await uploadAttachment(addRes.data.Id, formState.assignmentFile);
+        }
       }
 
+      await getAssignments();
       handleCloseModal();
-    } else {
-      alert("Please fill all fields.");
+    } catch (err) {
+      console.error("Error saving assignment:", err);
     }
   };
 
-  const handleDelete = () => {
-    if (assignmentToDelete) {
-      deleteAssignment(assignmentToDelete.id);
+  // 🔹 Delete
+  const handleDelete = async () => {
+    if (!assignmentToDelete) return;
+    try {
+      await web.lists
+        .getById("1d5452dc-7b1d-430b-b316-0680492ffd48")
+        .items.getById(parseInt(assignmentToDelete.id))
+        .delete();
+      await getAssignments();
       setAssignmentToDelete(null);
+    } catch (err) {
+      console.error("Error deleting assignment:", err);
     }
   };
 
@@ -214,6 +260,7 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
           Allocate Assignment
         </button>
       </div>
+
       <Table
         headers={[
           "Title",
@@ -227,11 +274,11 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
       >
         {assignments.map((assignment: any) => (
           <tr key={assignment.id} className="align-middle">
-            <td className="p-3 fw-semibold">{assignment.title}</td>
-            <td className="p-3">{getStudentName(assignment.studentId)}</td>
-            <td className="p-3">{getCourseName(assignment.courseId)}</td>
-            <td className="p-3">{assignment.dueDate.substring(0, 10)}</td>
-            <td className="p-3">
+            <td>{assignment.title}</td>
+            <td>{getStudentName(assignment.studentId)}</td>
+            <td>{getCourseName(assignment.courseId)}</td>
+            <td>{assignment.dueDate.substring(0, 10)}</td>
+            <td>
               <span
                 className={`badge rounded-pill ${
                   assignment.status === "Submitted"
@@ -242,13 +289,12 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
                 {assignment.status}
               </span>
             </td>
-            <td className="p-3 text-center">
-              {assignment.assignmentFileUrl ? (
+            <td className="text-center">
+              {assignment.attachmentFiles?.length ? (
                 <a
-                  href={assignment.assignmentFileUrl}
+                  href={`${window.location.origin}${assignment.attachmentFiles[0].ServerRelativeUrl}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary"
                 >
                   <DocumentIcon />
                 </a>
@@ -256,7 +302,7 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
                 <span>-</span>
               )}
             </td>
-            <td className="p-3">
+            <td>
               <div className="d-flex gap-2">
                 <button
                   onClick={() => handleOpenModal(assignment)}
@@ -279,7 +325,7 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
       {assignmentToDelete && (
         <ConfirmationModal
           title="Delete Assignment"
-          message={`Are you sure you want to delete the assignment "${assignmentToDelete.title}"?`}
+          message={`Are you sure you want to delete "${assignmentToDelete.title}"?`}
           onConfirm={handleDelete}
           onCancel={() => setAssignmentToDelete(null)}
         />
@@ -313,9 +359,9 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
             required
           >
             <option value="">Select a course</option>
-            {courses.map((course: any) => (
-              <option key={course.id} value={course.id}>
-                {course.name}
+            {courses.map((c: any) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
               </option>
             ))}
           </FormSelect>
@@ -328,9 +374,9 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
             disabled={!formState.courseId}
           >
             <option value="">Select a student</option>
-            {studentsForCourse.map((student) => (
-              <option key={student.id} value={student.id}>
-                {student.name}
+            {studentsForCourse.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
               </option>
             ))}
           </FormSelect>
@@ -343,9 +389,9 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
             disabled={!formState.courseId}
           >
             <option value="">Select a trainer</option>
-            {trainersForCourse.map((trainer) => (
-              <option key={trainer.id} value={trainer.id}>
-                {trainer.name}
+            {trainersForCourse.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
               </option>
             ))}
           </FormSelect>
@@ -359,7 +405,7 @@ const AssignmentsView: React.FC<{ data: ReturnType<typeof useMockData> }> = ({
           />
           <FormInput
             label="Assignment File"
-            name="assignmentFileUrl"
+            name="assignmentFile"
             type="file"
             onChange={handleFileChange}
           />

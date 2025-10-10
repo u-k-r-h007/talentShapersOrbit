@@ -272,125 +272,129 @@ export const useMockData = () => {
 
   // assignment
 
-  const uploadFileToLibrary = async (file: File): Promise<string> => {
-    const folder = web.getFolderByServerRelativeUrl(
-      "Shared Documents/TsharpersAssignmentDocs"
-    );
-    const uploaded = await folder.files.add(file.name, file, true);
-    return `${window.location.origin}${uploaded.data.ServerRelativeUrl}`;
-  };
+// 🔹 Upload attachment to SharePoint list item
+const uploadAttachment = async (itemId: number, file: File, listId: string) => {
+  const list = web.lists.getById(listId);
 
-  // CREATE
-  const addAssignment = async (assignment: any) => {
-    try {
-      let fileUrl = "";
-      if (assignment.assignmentFile) {
-        fileUrl = await uploadFileToLibrary(assignment.assignmentFile);
-      }
+  // Delete old attachments first (to overwrite)
+  const existingAttachments = await list.items.getById(itemId).attachmentFiles.get();
+  for (const f of existingAttachments) {
+    await list.items.getById(itemId).attachmentFiles.getByName(f.FileName).delete();
+  }
 
-      await web.lists.getById("1d5452dc-7b1d-430b-b316-0680492ffd48").items.add({
-        Title: assignment.title,
-        CourseId: assignment.courseId ? parseInt(assignment.courseId) : null,
-        StudentId: assignment.studentId ? parseInt(assignment.studentId) : null,
-        TrainerId: assignment.trainerId ? parseInt(assignment.trainerId) : null,
-        DueDate: assignment.dueDate,
-        Status: assignment.status || "Pending",
-        AssignmentFile: fileUrl
-          ? {
-              Description: assignment.assignmentFile?.name || "Assignment PDF",
-              Url: fileUrl,
-            }
-          : null,
-      });
+  // Add new attachment
+  const buffer = await file.arrayBuffer();
+  const uploaded = await list.items.getById(itemId).attachmentFiles.add(file.name, buffer);
+  return `${window.location.origin}${uploaded.data.ServerRelativeUrl}`;
+};
 
-      await getAssignments();
-    } catch (err) {
-      console.error("Error adding assignment:", err);
+// 🔹 CREATE
+const addAssignment = async (assignment: any) => {
+  try {
+    const listId = "1d5452dc-7b1d-430b-b316-0680492ffd48";
+    // 1️⃣ Create item without file first
+    const addRes = await web.lists.getById(listId).items.add({
+      Title: assignment.title,
+      CourseId: assignment.courseId ? parseInt(assignment.courseId) : null,
+      StudentId: assignment.studentId ? parseInt(assignment.studentId) : null,
+      TrainerId: assignment.trainerId ? parseInt(assignment.trainerId) : null,
+      DueDate: assignment.dueDate,
+      Status: assignment.status || "Pending",
+    });
+
+    // 2️⃣ Upload file as attachment if present
+    if (assignment.assignmentFile) {
+      await uploadAttachment(addRes.data.Id, assignment.assignmentFile, listId);
     }
-  };
 
-  // READ (get all)
-  const getAssignments = async () => {
-    try {
-      const items = await web.lists
-        .getById("1d5452dc-7b1d-430b-b316-0680492ffd48")
-        .items.select(
-          "Id,Title,Course/Id,Course/Title,Student/Id,Student/Title,Trainer/Id,Trainer/Title,DueDate,AssignmentFile,Status"
-        )
-        .expand("Course,Student,Trainer")
-        .get();
-      const mappedData = items.map((item: any) => ({
-        id: item.Id.toString(),
-        title: item.Title,
-        courseId: item.Course?.Id?.toString() || "",
-        courseName: item.Course?.Title || "",
-        studentId: item.Student?.Id?.toString() || "",
-        studentName: item.Student?.Title || "",
-        trainerId: item.Trainer?.Id?.toString() || "",
-        trainerName: item.Trainer?.Title || "",
-        dueDate: item.DueDate,
-        status: item.Status || "Pending",
-        assignmentFileUrl: item.AssignmentFile?.Url || "",
-      }));
-      setAssignments(mappedData);
-    } catch (err) {
-      console.error("Error fetching assignments:", err);
-      throw err;
-    }
-  };
-  useEffect(() => {
-    getAssignments();
-  }, []);
+    await getAssignments();
+  } catch (err) {
+    console.error("Error adding assignment:", err);
+  }
+};
 
-  // UPDATE
-  const updateAssignment = async (assignment: any) => {
-    try {
-      let fileField = undefined;
-      if (assignment.assignmentFile) {
-        const fileUrl = await uploadFileToLibrary(assignment.assignmentFile);
-        fileField = { Url: fileUrl, Description: "Assignment File" };
-      } else if (assignment.assignmentFileUrl) {
-        fileField = {
-          Url: assignment.assignmentFileUrl.replace(window.location.origin, ""),
-          Description: "Assignment File",
+// 🔹 READ
+const getAssignments = async () => {
+  try {
+    const listId = "1d5452dc-7b1d-430b-b316-0680492ffd48";
+    const items = await web.lists.getById(listId).items.select(
+      "Id,Title,Course/Id,Course/Title,Student/Id,Student/Title,Trainer/Id,Trainer/Title,DueDate,Status,Attachments"
+    ).expand("Course,Student,Trainer").get();
+
+    const mappedData = await Promise.all(
+      items.map(async (item: any) => {
+        // Get attachments
+        const attachments = item.Attachments
+          ? await web.lists.getById(listId).items.getById(item.Id).attachmentFiles.get()
+          : [];
+
+        return {
+          id: item.Id.toString(),
+          title: item.Title,
+          courseId: item.Course?.Id?.toString() || "",
+          courseName: item.Course?.Title || "",
+          studentId: item.Student?.Id?.toString() || "",
+          studentName: item.Student?.Title || "",
+          trainerId: item.Trainer?.Id?.toString() || "",
+          trainerName: item.Trainer?.Title || "",
+          dueDate: item.DueDate,
+          status: item.Status || "Pending",
+          attachmentFiles: attachments, // array of attachments
+          assignmentFileUrl: attachments.length > 0 ? `${window.location.origin}${attachments[0].ServerRelativeUrl}` : "",
         };
-      }
-      await web.lists
-        .getById("1d5452dc-7b1d-430b-b316-0680492ffd48")
-        .items.getById(parseInt(assignment.id))
-        .update({
-          Title: assignment.title,
-          CourseId: assignment.courseId ? parseInt(assignment.courseId) : null,
-          StudentId: assignment.studentId
-            ? parseInt(assignment.studentId)
-            : null,
-          TrainerId: assignment.trainerId
-            ? parseInt(assignment.trainerId)
-            : null,
-          DueDate: assignment.dueDate,
-          AssignmentFile: fileField,
-          Status: assignment.status || "Pending",
-        });
-      await getAssignments();
-    } catch (err) {
-      console.error("Error updating assignment:", err);
-      throw err;
-    }
-  };
+      })
+    );
 
-  // DELETE
-  const deleteAssignment = async (id: string) => {
-    try {
-      await web.lists
-        .getById("1d5452dc-7b1d-430b-b316-0680492ffd48")
-        .items.getById(parseInt(id))
-        .delete();
-      await getAssignments();
-    } catch (err) {
-      console.error("Error deleting assignment:", err);
-      throw err;
+    setAssignments(mappedData);
+  } catch (err) {
+    console.error("Error fetching assignments:", err);
+    throw err;
+  }
+};
+
+// 🔹 UPDATE
+const updateAssignment = async (assignment: any) => {
+  try {
+    const listId = "1d5452dc-7b1d-430b-b316-0680492ffd48";
+
+    // Update item fields first
+    await web.lists.getById(listId).items.getById(parseInt(assignment.id)).update({
+      Title: assignment.title,
+      CourseId: assignment.courseId ? parseInt(assignment.courseId) : null,
+      StudentId: assignment.studentId ? parseInt(assignment.studentId) : null,
+      TrainerId: assignment.trainerId ? parseInt(assignment.trainerId) : null,
+      DueDate: assignment.dueDate,
+      Status: assignment.status || "Pending",
+    });
+
+    // Upload new attachment if provided (overwrites old)
+    if (assignment.assignmentFile) {
+      await uploadAttachment(parseInt(assignment.id), assignment.assignmentFile, listId);
     }
-  };
+
+    await getAssignments();
+  } catch (err) {
+    console.error("Error updating assignment:", err);
+    throw err;
+  }
+};
+
+// 🔹 DELETE
+const deleteAssignment = async (id: string) => {
+  try {
+    const listId = "1d5452dc-7b1d-430b-b316-0680492ffd48";
+    await web.lists.getById(listId).items.getById(parseInt(id)).delete();
+    await getAssignments();
+  } catch (err) {
+    console.error("Error deleting assignment:", err);
+    throw err;
+  }
+};
+
+// 🔹 Call getAssignments on mount
+useEffect(() => {
+  getAssignments();
+}, []);
 
   // payment module
 
@@ -474,151 +478,165 @@ export const useMockData = () => {
     }
   };
 
+
   // trainer model
-  useEffect(() => {
-    const getTrainers = async (): Promise<void> => {
-      try {
-        const list = await web.lists
-          .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
-          .items.select(
-            "Id,Title,FullName,Email,Phone,Gender,Profile,Address,Expertise/Id,Expertise/Title"
-          )
-          .expand("Expertise")
-          .get();
+useEffect(() => {
+  const getTrainers = async (): Promise<void> => {
+    try {
+      const list = await web.lists
+        .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
+        .items.select(
+          "Id,Title,FullName,Email,Phone,Gender,Address,Expertise/Id,Expertise/Title,Attachments"
+        )
+        .expand("Expertise")
+        .get();
 
-        const sanitizeUrl = (url: string) => {
-          if (!url) return "";
-          if (url.startsWith("http://") || url.startsWith("https://"))
-            return url;
-          // Fix missing colon after https
-          if (url.startsWith("https//"))
-            return url.replace("https//", "https://");
-          return `${window.location.origin}${url}`;
-        };
+      const formatted = await Promise.all(
+        list.map(async (item: any) => {
+          // Get attachments if any
+          const attachments = item.Attachments
+            ? await web.lists
+                .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
+                .items.getById(item.Id)
+                .attachmentFiles.get()
+            : [];
 
-        const formatted = list.map((item: any) => ({
-          id: item.Id.toString(),
-          name: item.FullName,
-          email: item.Email,
-          phone: item.Phone,
-          address: item.Address,
-          gender: item.Gender,
-          imageUrl: sanitizeUrl(item.Profile?.Url),
-          expertise: item.Expertise.map((ex: any) => ex.Id.toString()),
-        }));
+          // Take first attachment as profile picture (if multiple)
+          const imageUrl =
+            attachments.length > 0
+              ? `${window.location.origin}${attachments[0].ServerRelativeUrl}`
+              : "";
 
-        setTrainers(formatted);
-      } catch (err) {
-        console.error("Error fetching trainers:", err);
-      }
-    };
+          return {
+            id: item.Id.toString(),
+            name: item.FullName,
+            email: item.Email,
+            phone: item.Phone,
+            address: item.Address,
+            gender: item.Gender,
+            imageUrl,
+            expertise: item.Expertise.map((ex: any) => ex.Id.toString()),
+            attachments, // store all attachments
+          };
+        })
+      );
 
-    getTrainers();
-  }, []);
-
-  // TrainerMethods.ts
-  const uploadTrainerImage = async (file: File) => {
-    const folder = web.getFolderByServerRelativeUrl(
-      "/sites/TSO/Pictures/TrainerImage"
-    );
-    const uploadedFile = await folder.files.add(file.name, file, true);
-    return uploadedFile.data.ServerRelativeUrl; // ServerRelativeUrl
+      setTrainers(formatted);
+    } catch (err) {
+      console.error("Error fetching trainers:", err);
+    }
   };
 
-  // 🔹 Add a new trainer
-  const addTrainer = async (trainer: any) => {
-    try {
-      const profileField: any = trainer.imageFile
-        ? {
-            Url: await uploadTrainerImage(trainer.imageFile),
-            Description: "Profile Picture",
-          }
-        : null;
+  getTrainers();
+}, []);
 
-      const item = await web.lists.getById("ed766b42-ed7b-4f73-874e-ed69f7f44975").items.add({
+const uploadTrainerAttachment = async (itemId: number, file: File) => {
+  // Delete old attachment if exists
+  const attachments = await web.lists
+    .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
+    .items.getById(itemId)
+    .attachmentFiles.get();
+
+  for (const f of attachments) {
+    await web.lists
+      .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
+      .items.getById(itemId)
+      .attachmentFiles.getByName(f.FileName)
+      .delete();
+  }
+
+  // Add new attachment
+  const buffer = await file.arrayBuffer();
+  const uploaded = await web.lists
+    .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
+    .items.getById(itemId)
+    .attachmentFiles.add(file.name, buffer);
+
+  return `${window.location.origin}${uploaded.data.ServerRelativeUrl}`;
+};
+
+
+
+  // 🔹 Add a new trainer
+const addTrainer = async (trainer: any) => {
+  try {
+    const item = await web.lists
+      .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
+      .items.add({
         Title: trainer.name,
         FullName: trainer.name,
         Email: trainer.email,
         Phone: trainer.phone,
         Address: trainer.address,
         Gender: trainer.gender,
-        Profile: profileField,
         ExpertiseId: {
           results: trainer.expertise.map((id: any) => parseInt(id)),
         },
       });
 
-      const newTrainer: any = {
-        ...trainer,
-        id: item.data.Id.toString(),
-        imageUrl: profileField?.Url
-          ? `${window.location.origin}${profileField.Url}`
-          : "",
-      };
-      setTrainers([...trainers, newTrainer]);
-    } catch (err) {
-      console.error("Error adding trainer:", err);
+    let imageUrl = "";
+    if (trainer.imageFile) {
+      imageUrl = await uploadTrainerAttachment(item.data.Id, trainer.imageFile);
     }
-  };
 
+    const newTrainer = {
+      ...trainer,
+      id: item.data.Id.toString(),
+      imageUrl,
+    };
+    setTrainers([...trainers, newTrainer]);
+  } catch (err) {
+    console.error("Error adding trainer:", err);
+  }
+};
   // 🔹 Update trainer
-  const updateTrainer = async (trainer: any): Promise<void> => {
-    try {
-      const profileFieldUpdate: any = trainer.imageFile
-        ? {
-            Url: await uploadTrainerImage(trainer.imageFile),
-            Description: "Profile Picture",
-          }
-        : trainer.imageUrl
-        ? {
-            Url: trainer.imageUrl.replace(window.location.origin, ""),
-            Description: "Profile Picture",
-          }
-        : null;
+const updateTrainer = async (trainer: any): Promise<void> => {
+  try {
+    await web.lists
+      .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
+      .items.getById(parseInt(trainer.id))
+      .update({
+        FullName: trainer.name,
+        Email: trainer.email,
+        Phone: trainer.phone,
+        Address: trainer.address,
+        Gender: trainer.gender,
+        ExpertiseId: {
+          results: trainer.expertise.map((id: any) => parseInt(id)),
+        },
+      });
 
-      await web.lists
-        .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
-        .items.getById(parseInt(trainer.id))
-        .update({
-          FullName: trainer.name,
-          Email: trainer.email,
-          Phone: trainer.phone,
-          Address: trainer.address,
-          Gender: trainer.gender,
-          Profile: profileFieldUpdate,
-          ExpertiseId: {
-            results: trainer.expertise.map((id: any) => parseInt(id)),
-          },
-        });
-
-      const updatedTrainer = {
-        ...trainer,
-        imageUrl: profileFieldUpdate?.Url
-          ? `${window.location.origin}${profileFieldUpdate.Url}`
-          : trainer.imageUrl || "",
-      };
-
-      setTrainers(
-        trainers.map((t) => (t.id === trainer.id ? updatedTrainer : t))
-      );
-    } catch (err) {
-      console.error("Error updating trainer:", err);
+    let imageUrl = trainer.imageUrl || "";
+    if (trainer.imageFile) {
+      imageUrl = await uploadTrainerAttachment(parseInt(trainer.id), trainer.imageFile);
     }
-  };
+
+    const updatedTrainer = {
+      ...trainer,
+      imageUrl,
+    };
+
+    setTrainers(
+      trainers.map((t) => (t.id === trainer.id ? updatedTrainer : t))
+    );
+  } catch (err) {
+    console.error("Error updating trainer:", err);
+  }
+};
 
   // 🔹 Delete trainer
-  const deleteTrainer = async (id: string): Promise<void> => {
-    try {
-      await web.lists
-        .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
-        .items.getById(parseInt(id))
-        .delete();
-      setTrainers(trainers.filter((t) => t.id !== id));
-    } catch (err) {
-      console.error("Error deleting trainer:", err);
-    }
-  };
+const deleteTrainer = async (id: string): Promise<void> => {
+  try {
+    await web.lists
+      .getById("ed766b42-ed7b-4f73-874e-ed69f7f44975")
+      .items.getById(parseInt(id))
+      .delete();
 
+    setTrainers(trainers.filter((t) => t.id !== id));
+  } catch (err) {
+    console.error("Error deleting trainer:", err);
+  }
+};
   /// gajendra
 
   const sanitizeUrl = (url?: string) => {
@@ -956,6 +974,7 @@ export const useMockData = () => {
   };
 
   return {
+    getAssignments,
     expensesData,
     expenses,
     addExpense,
